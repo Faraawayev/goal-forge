@@ -25,6 +25,23 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '18'
+
+      - name: Check Postgres availability & DATABASE_URL
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/goalforge
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::DATABASE_URL not set for CI"; exit 1
+          fi
+          echo "Waiting for Postgres on localhost:5432..."
+          retries=30
+          until bash -c '</dev/tcp/127.0.0.1/5432' >/dev/null 2>&1 || [ $retries -le 0 ]; do
+            sleep 1
+            retries=$((retries-1))
+          done
+          if [ $retries -le 0 ]; then echo "::error::Postgres did not become ready"; exit 1; fi
+          echo "::notice::Postgres seems reachable"
+
       - name: Install deps
         run: npm ci
       - name: Build

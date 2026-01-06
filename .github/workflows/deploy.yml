@@ -35,9 +35,8 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           if [ -z "$DATABASE_URL" ]; then
-            echo "::warning::DATABASE_URL is not set"
-            echo "database_present=false" >> $GITHUB_OUTPUT
-            exit 0
+            echo "::error::DATABASE_URL is not set; migrations require DATABASE_URL. Set the secret in repo settings"
+            exit 1
           fi
           len=${#DATABASE_URL}
           echo "::notice::DATABASE_URL is set (length=${len} chars) — value is masked"
