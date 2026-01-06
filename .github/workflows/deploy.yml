@@ -34,6 +34,10 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL secret not set — skipping migrations"
+            exit 0
+          fi
           echo "Running migrations..."
           npm run db:push
 
