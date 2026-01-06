@@ -22,6 +22,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: Build
         run: npm run build
 
@@ -33,6 +36,7 @@ jobs:
           npm run db:push
 
       - name: Trigger Render deploy
+        id: trigger_render
         if: ${{ secrets.RENDER_API_KEY && secrets.RENDER_SERVICE_ID }}
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
@@ -48,7 +52,7 @@ jobs:
           if [ "$deploy_id" = "null" ] || [ -z "$deploy_id" ]; then
             echo "Render deploy trigger failed"; echo "$resp"; exit 1
           fi
-          echo "Render deploy id: $deploy_id"
+          echo "render_deploy_id=$deploy_id" >> $GITHUB_OUTPUT
 
       - name: Wait for Render deploy to finish
         if: ${{ secrets.RENDER_API_KEY && secrets.RENDER_SERVICE_ID }}
@@ -75,6 +79,7 @@ jobs:
           fi
 
       - name: Get Render service URL
+        id: get_render_service_url
         if: ${{ secrets.RENDER_API_KEY && secrets.RENDER_SERVICE_ID }}
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
@@ -102,12 +107,12 @@ jobs:
       - name: Run seed endpoint (dev seed)
         env:
           DEV_SEED_TOKEN: ${{ secrets.DEV_SEED_TOKEN }}
-          BASE_URL: ${{ steps.get_render_service_url.outputs.render_service_url }}
+          RENDER_URL: ${{ steps.get_render_service_url.outputs.render_service_url }}
+          BASE_URL: ${{ secrets.BASE_URL }}
         run: |
-          # prefer Render URL; fallback to BASE_URL secret
-          backend=${{ steps.get_render_service_url.outputs.render_service_url }}
+          backend="$RENDER_URL"
           if [ -z "$backend" ] || [ "$backend" = "null" ]; then
-            backend=${{ secrets.BASE_URL }}
+            backend="$BASE_URL"
           fi
           if [ -z "$backend" ]; then
             echo "No backend URL available to run seed"; exit 0
@@ -119,4 +124,4 @@ jobs:
         env:
           BASE_URL: ${{ secrets.BASE_URL }}
         run: |
-          node script/smoke.ts || true
+          npx tsx script/smoke.ts || true
