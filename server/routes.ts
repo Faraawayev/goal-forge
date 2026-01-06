@@ -6,6 +6,10 @@ import { z } from "zod";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { registerChatRoutes } from "./replit_integrations/chat";
 import { registerImageRoutes } from "./replit_integrations/image";
+import { pool, db } from "./db";
+import { users } from "@shared/models/auth";
+import { eq } from "drizzle-orm";
+import config from "./config";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -16,6 +20,47 @@ export async function registerRoutes(
   registerAuthRoutes(app);
   registerChatRoutes(app);
   registerImageRoutes(app);
+
+  // Simple healthcheck endpoint (public)
+  app.get('/api/health', async (_req, res) => {
+    try {
+      await pool.query('SELECT 1');
+      res.json({ status: 'ok' });
+    } catch (err: any) {
+      res.status(500).json({ status: 'error', message: String(err) });
+    }
+  });
+
+  // Dev-only seed endpoint. Requires DEV_SEED_TOKEN if set. Only enabled in non-production.
+  if (process.env.NODE_ENV !== 'production') {
+    app.post('/api/dev/seed', async (req: any, res) => {
+      try {
+        const token = req.query.token as string | undefined;
+        if (config.DEV_SEED_TOKEN && config.DEV_SEED_TOKEN !== token) {
+          return res.status(401).json({ message: 'Unauthorized' });
+        }
+
+        const userId = req.body.userId || 'demo-user';
+        // upsert user
+        const existing = await db.select().from(users).where(eq(users.id, userId));
+        if (existing.length === 0) {
+          await db.insert(users).values({ id: userId, email: 'demo@example.com', firstName: 'Demo', lastName: 'User' });
+        }
+
+        // create a couple of sample goals and tasks for the demo user
+        const g1 = await storage.createGoal({ title: 'Read 30 pages', type: 'daily', userId, progress: 0 });
+        const g2 = await storage.createGoal({ title: 'Launch MVP', type: 'weekly', userId, progress: 10 });
+
+        await storage.createTask({ title: 'Buy book', userId, goalId: g1.id });
+        await storage.createTask({ title: 'Write README', userId, goalId: g2.id });
+
+        res.json({ message: 'Seeded demo data', userId });
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Seed failed', error: String(err) });
+      }
+    });
+  }
 
   // Protected middleware for API routes
   const protectedApi = (req: any, res: any, next: any) => {

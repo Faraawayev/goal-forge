@@ -1,4 +1,7 @@
+import config from "./config";
+
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -21,6 +24,9 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
+
+// Configure CORS for development. In production, requests should come from the same origin
+app.use(cors({ origin: process.env.CORS_ORIGIN || true }));
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -84,7 +90,7 @@ app.use((req, res, next) => {
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || "5000", 10);
+  const port = config.PORT;
   httpServer.listen(
     {
       port,

@@ -2,26 +2,28 @@ import { db } from "./db";
 import { goals, tasks, sprints, retrospectives } from "@shared/schema";
 import { users } from "@shared/models/auth";
 
+import { storage } from "./storage";
+import { db } from "./db";
+import { users } from "@shared/models/auth";
+import { eq } from "drizzle-orm";
+
 async function seed() {
   console.log("Seeding database...");
+  const userId = process.env.SAMPLE_USER_ID || "demo-user";
 
-  // Check if we have any users, if not, we can't really seed user data easily without a user ID.
-  // But we can just create a dummy user for seeding purposes if we really wanted to, 
-  // but Replit Auth creates users on login. 
-  // So I will skip seeding user-specific data for now, or just log that we need a user.
-  
-  // However, I can seed a sprint if I assume a user ID or just leave it empty for now 
-  // (but schema says userId is notNull).
-  
-  // Actually, better to just let the user create data or seed when a user logs in.
-  // But I can seed some general data if needed. 
-  // The prompt asked to "seed data with sample goals".
-  
-  // I will create a seed route instead that the user can hit after logging in?
-  // Or I can just leave it as is.
-  
-  // Let's just log for now.
-  console.log("Seed script running. No global data to seed as everything is user-scoped.");
+  const existing = await db.select().from(users).where(eq(users.id, userId));
+  if (existing.length === 0) {
+    await db.insert(users).values({ id: userId, email: "demo@example.com", firstName: "Demo", lastName: "User" });
+    console.log(`Created demo user ${userId}`);
+  }
+
+  const g1 = await storage.createGoal({ title: 'Read 30 pages', type: 'daily', userId, progress: 0 });
+  const g2 = await storage.createGoal({ title: 'Launch MVP', type: 'weekly', userId, progress: 10 });
+
+  await storage.createTask({ title: 'Buy book', userId, goalId: g1.id });
+  await storage.createTask({ title: 'Write README', userId, goalId: g2.id });
+
+  console.log('Seed complete');
 }
 
 seed().catch(console.error);

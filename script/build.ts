@@ -44,7 +44,7 @@ async function buildAll() {
     ...Object.keys(pkg.dependencies || {}),
     ...Object.keys(pkg.devDependencies || {}),
   ];
-  const externals = allDeps.filter((dep) => !allowlist.includes(dep));
+  const externals = allDeps.filter((dep) => !allowlist.includes(dep) || dep === "dotenv");
 
   await esbuild({
     entryPoints: ["server/index.ts"],

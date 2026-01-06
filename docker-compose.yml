@@ -1,0 +1,27 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: goalforge
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  app:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/goalforge
+      PORT: 5000
+      NODE_ENV: development
+    ports:
+      - "5000:5000"
+    command: sh -c "npm run db:push || true && node dist/index.cjs"
+
+volumes:
+  pgdata: {}
