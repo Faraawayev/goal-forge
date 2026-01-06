@@ -30,6 +30,19 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Check DATABASE_URL secret (masked)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::warning::DATABASE_URL is not set"
+            echo "database_present=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          len=${#DATABASE_URL}
+          echo "::notice::DATABASE_URL is set (length=${len} chars) — value is masked"
+          echo "database_present=true" >> $GITHUB_OUTPUT
+
       - name: Run DB migrations (drizzle-kit)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
